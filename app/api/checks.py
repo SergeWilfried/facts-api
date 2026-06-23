@@ -12,7 +12,7 @@ from app.models import Check, Claim, CheckCreate, CheckOut, User
 
 router = APIRouter()
 
-FREE_DAILY_LIMIT = 3
+FREE_DAILY_LIMIT = 20
 
 
 async def _load_check(db: AsyncSession, check_id) -> Check:

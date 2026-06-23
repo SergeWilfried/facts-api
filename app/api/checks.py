@@ -25,12 +25,16 @@ async def create_check(
     db.add(check)
     user.checks_used = (user.checks_used or 0) + 1
     await db.commit()
-    await db.refresh(check)
 
     from celery_app import run_check  # lazy — avoids Redis connect on startup
     run_check.delay(str(check.id))
 
-    return check
+    result = await db.execute(
+        select(Check)
+        .where(Check.id == check.id)
+        .options(selectinload(Check.claims).selectinload(Claim.sources))
+    )
+    return result.scalar_one()
 
 
 @router.get("/", response_model=list[CheckOut])

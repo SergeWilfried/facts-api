@@ -105,7 +105,7 @@ class LoginRequest(BaseModel):
 
 
 class UserOut(BaseModel):
-    id: str
+    id: uuid.UUID
     email: str
     plan: str
     checks_used: float
@@ -123,7 +123,7 @@ class CheckCreate(BaseModel):
 
 
 class SourceOut(BaseModel):
-    id: str
+    id: uuid.UUID
     title: Optional[str]
     url: str
     snippet: Optional[str]
@@ -133,7 +133,7 @@ class SourceOut(BaseModel):
 
 
 class ClaimOut(BaseModel):
-    id: str
+    id: uuid.UUID
     text: str
     verdict: Optional[str]
     confidence: Optional[float]
@@ -144,7 +144,7 @@ class ClaimOut(BaseModel):
 
 
 class CheckOut(BaseModel):
-    id: str
+    id: uuid.UUID
     url: str
     status: str
     verdict: Optional[str]

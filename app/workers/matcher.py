@@ -7,7 +7,7 @@ from sqlalchemy import text
 
 from app.database import SyncSessionLocal
 
-_EMBED_MODEL = "all-MiniLM-L6-v2"
+_EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 _SIMILARITY_THRESHOLD = 0.88
 
 
@@ -21,12 +21,12 @@ class MatchedClaim:
 
 @lru_cache(maxsize=1)
 def _get_model():
-    from sentence_transformers import SentenceTransformer
-    return SentenceTransformer(_EMBED_MODEL)
+    from fastembed import TextEmbedding
+    return TextEmbedding(model_name=_EMBED_MODEL)
 
 
 def embed(text_: str) -> list[float]:
-    return _get_model().encode(text_).tolist()
+    return list(next(_get_model().embed([text_])))
 
 
 def find_similar(claim_text: str) -> Optional[MatchedClaim]:

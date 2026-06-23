@@ -1,3 +1,6 @@
+import asyncio
+from functools import partial
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -5,19 +8,39 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_user
 from app.database import get_db
-from app.models import Check, Claim, CheckCreate, CheckOut, Source, User
+from app.models import Check, Claim, CheckCreate, CheckOut, User
 
 router = APIRouter()
 
 FREE_DAILY_LIMIT = 3
 
 
-@router.post("/", response_model=CheckOut, status_code=202)
+async def _load_check(db: AsyncSession, check_id) -> Check:
+    result = await db.execute(
+        select(Check)
+        .where(Check.id == check_id)
+        .options(selectinload(Check.claims).selectinload(Claim.sources))
+    )
+    return result.scalar_one()
+
+
+@router.post("/", response_model=CheckOut, status_code=200)
 async def create_check(
     body: CheckCreate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    # Return cached result if this URL was already successfully checked
+    cached = await db.execute(
+        select(Check)
+        .where(Check.url == body.url, Check.status == "done")
+        .options(selectinload(Check.claims).selectinload(Claim.sources))
+        .order_by(Check.created_at.desc())
+        .limit(1)
+    )
+    if hit := cached.scalar_one_or_none():
+        return hit
+
     if user.plan == "free" and user.checks_used >= FREE_DAILY_LIMIT:
         raise HTTPException(status_code=402, detail="Free tier limit reached. Upgrade to Pro.")
 
@@ -26,15 +49,11 @@ async def create_check(
     user.checks_used = (user.checks_used or 0) + 1
     await db.commit()
 
-    from celery_app import run_check  # lazy — avoids Redis connect on startup
-    run_check.delay(str(check.id))
+    from app.workers.pipeline import run
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, partial(run, str(check.id)))
 
-    result = await db.execute(
-        select(Check)
-        .where(Check.id == check.id)
-        .options(selectinload(Check.claims).selectinload(Claim.sources))
-    )
-    return result.scalar_one()
+    return await _load_check(db, check.id)
 
 
 @router.get("/", response_model=list[CheckOut])

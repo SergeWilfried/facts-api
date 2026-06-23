@@ -24,5 +24,8 @@ def extract_claims(caption: Optional[str], transcript: Optional[str]) -> list[st
             text = text[4:]
     text = text.strip()
 
+    if not text:
+        return []
+
     claims: list[str] = json.loads(text)
     return [c for c in claims if isinstance(c, str) and c.strip()]

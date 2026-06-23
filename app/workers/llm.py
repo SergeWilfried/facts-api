@@ -35,6 +35,6 @@ def complete(system: str, user: str) -> str:
                 {"role": "user", "content": user},
             ],
         )
-        return resp.choices[0].message.content.strip()
+        return (resp.choices[0].message.content or "").strip()
 
     raise ValueError(f"Unknown LLM_PROVIDER: {settings.llm_provider!r}. Use 'anthropic', 'openai', or 'groq'.")

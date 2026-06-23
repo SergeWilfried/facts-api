@@ -27,7 +27,7 @@ async def create_check(
     await db.commit()
     await db.refresh(check)
 
-    from celery_app import run_check
+    from celery_app import run_check  # lazy — avoids Redis connect on startup
     run_check.delay(str(check.id))
 
     return check

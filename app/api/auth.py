@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.models import Token, User, UserCreate, UserOut
+from app.models import LoginRequest, Token, User, UserCreate, UserOut
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -80,5 +80,14 @@ async def login(form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = 
     result = await db.execute(select(User).where(User.email == form.username))
     user = result.scalar_one_or_none()
     if not user or not _verify(form.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    return Token(access_token=_create_token(str(user.id)))
+
+
+@router.post("/login", response_model=Token)
+async def login_json(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
+    if not user or not _verify(body.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     return Token(access_token=_create_token(str(user.id)))

@@ -67,8 +67,8 @@ class Claim(Base):
     verdict = Column(String(20), nullable=True)
     confidence = Column(Float, nullable=True)  # 0.0 – 1.0
     reasoning = Column(Text, nullable=True)
-    # pgvector embedding for similarity matching (text-embedding-3-small = 1536 dims)
-    embedding = Column(Vector(1536), nullable=True)
+    # pgvector embedding for similarity matching (all-MiniLM-L6-v2 = 384 dims)
+    embedding = Column(Vector(384), nullable=True)
 
     check = relationship("Check", back_populates="claims")
     sources = relationship("Source", back_populates="claim", cascade="all, delete-orphan")

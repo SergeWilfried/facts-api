@@ -1,15 +1,13 @@
 """Find similar previously-verified claims via pgvector cosine similarity."""
 from typing import Optional
 from dataclasses import dataclass
+from functools import lru_cache
 
-from openai import OpenAI
 from sqlalchemy import text
 
-from app.config import settings
 from app.database import SyncSessionLocal
 
-_openai = OpenAI(api_key=settings.openai_api_key)
-_EMBED_MODEL = "text-embedding-3-small"
+_EMBED_MODEL = "all-MiniLM-L6-v2"
 _SIMILARITY_THRESHOLD = 0.88
 
 
@@ -21,9 +19,14 @@ class MatchedClaim:
     similarity: float
 
 
+@lru_cache(maxsize=1)
+def _get_model():
+    from sentence_transformers import SentenceTransformer
+    return SentenceTransformer(_EMBED_MODEL)
+
+
 def embed(text_: str) -> list[float]:
-    response = _openai.embeddings.create(model=_EMBED_MODEL, input=text_)
-    return response.data[0].embedding
+    return _get_model().encode(text_).tolist()
 
 
 def find_similar(claim_text: str) -> Optional[MatchedClaim]:

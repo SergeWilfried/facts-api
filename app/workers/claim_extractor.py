@@ -1,14 +1,10 @@
-"""Extract discrete factual claims from caption + transcript using Claude."""
+"""Extract discrete factual claims from caption + transcript."""
 import json
 from typing import Optional
 
-import anthropic
+from app.workers import llm
 
-from app.config import settings
-
-_client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-
-_SYSTEM = """You are a fact-checking assistant. Given the text content of a social media post, \
+_SYSTEM = """You are a fact-checking assistant. Given the text content of a social media post or article, \
 extract every distinct factual claim that can be independently verified. \
 Ignore opinions, predictions, and calls to action. \
 Return a JSON array of strings, each string being one claim. \
@@ -20,14 +16,7 @@ def extract_claims(caption: Optional[str], transcript: Optional[str]) -> list[st
     if not content.strip():
         return []
 
-    message = _client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=1024,
-        system=_SYSTEM,
-        messages=[{"role": "user", "content": f"Post content:\n{content}"}],
-    )
-
-    text = message.content[0].text.strip()
+    text = llm.complete(system=_SYSTEM, user=f"Post content:\n{content}")
     # Strip markdown fences if present
     if text.startswith("```"):
         text = text.split("```")[1]

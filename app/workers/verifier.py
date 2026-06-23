@@ -1,14 +1,13 @@
-"""Verify a claim: web search via Tavily, then verdict via Claude."""
+"""Verify a claim: web search via Tavily, then verdict via configured LLM."""
 import json
 from dataclasses import dataclass
 
-import anthropic
 from tavily import TavilyClient
 
 from app.config import settings
+from app.workers import llm
 
 _tavily = TavilyClient(api_key=settings.tavily_api_key)
-_claude = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
 _SYSTEM = """You are a fact-checking assistant. You will be given a factual claim and a set of \
 web search results. Determine whether the claim is:
@@ -46,19 +45,10 @@ def verify(claim_text: str) -> VerificationResult:
         for i, r in enumerate(results)
     )
 
-    message = _claude.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=512,
+    raw = llm.complete(
         system=_SYSTEM,
-        messages=[
-            {
-                "role": "user",
-                "content": f"Claim: {claim_text}\n\nSearch results:\n{sources_block}",
-            }
-        ],
+        user=f"Claim: {claim_text}\n\nSearch results:\n{sources_block}",
     )
-
-    raw = message.content[0].text.strip()
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         if raw.startswith("json"):

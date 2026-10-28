@@ -13,7 +13,7 @@ _ACTOR_MAP = [
     (r"instagram\.com", "apify/instagram-scraper"),
     (r"facebook\.com|fb\.watch", "apify/facebook-posts-scraper"),
     (r"twitter\.com|x\.com", "apidojo/tweet-scraper"),
-    (r"youtube\.com|youtu\.be", "bernardo/youtube-scraper"),
+    (r"youtube\.com|youtu\.be", "johnvc/YoutubeTranscripts"),
 ]
 
 
@@ -69,11 +69,12 @@ def _parse_result(actor: str, item: dict) -> ExtractedContent:
             caption=item.get("text"),
             video_url=None,
         )
-    if "youtube" in actor:
+    if "youtube" in actor.lower():
+        transcript = (item.get("text") or "")[:8000]  # cap to avoid token overflow
         return ExtractedContent(
             platform="youtube",
-            author_handle=item.get("channelName"),
-            caption=item.get("title", "") + "\n" + item.get("description", ""),
+            author_handle=item.get("channel_name"),
+            caption="\n".join(filter(None, [item.get("title"), item.get("description"), transcript])),
             video_url=None,
         )
     return ExtractedContent(platform="unknown", author_handle=None, caption=None, video_url=None)
@@ -149,7 +150,11 @@ def extract(url: str) -> ExtractedContent:
         return _extract_article(url)
 
     client = ApifyClient(settings.apify_api_token)
-    run = client.actor(actor).call(run_input={"startUrls": [{"url": url}], "resultsLimit": 1})
+    if "youtube" in actor.lower():
+        run_input = {"youtube_url": [url], "output_formats": ["text"]}
+    else:
+        run_input = {"startUrls": [{"url": url}], "resultsLimit": 1}
+    run = client.actor(actor).call(run_input=run_input)
     items = list(client.dataset(run["defaultDatasetId"]).iterate_items())
 
     if not items:
